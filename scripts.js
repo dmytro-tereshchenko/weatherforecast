@@ -29,7 +29,7 @@ async function currentWeather() {
     });
     if (response.ok === true) {
         const weather = await response.json();
-        let currentWeatherBlock = document.querySelector("#tooday>div:first-of-type");
+        let currentWeatherBlock = document.querySelector("#today>div:first-of-type");
         let date = new Date(weather.dt * 1000);
         currentWeatherBlock.querySelector("div:last-of-type").innerHTML = date.toLocaleDateString();
         const weatherLogo = currentWeatherBlock.childNodes[3].childNodes[1];
@@ -48,12 +48,12 @@ async function currentWeather() {
 }
 async function hourlyForecastCurrentDayByLocation(lat, lon) {
     const response = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=80883943e6ce504c831b3aedd952ba89`, {
-        //const response = await fetch(`https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&exclude=minutely&appid=80883943e6ce504c831b3aedd952ba89`, {
         method: "GET",
         headers: { "Accept": "application/json" }
     });
     if (response.ok === true) {
         var weather = await response.json();
+        console.log(weather);
         let i = 0;
         let currentDay = new Array();
         let endFilter = false;
@@ -71,7 +71,7 @@ async function hourlyForecastCurrentDayByLocation(lat, lon) {
                 endFilter = true;
             }
         }
-        const block = document.querySelector("#tooday>div:nth-of-type(2) tbody");
+        const block = document.querySelector("#today>div:nth-of-type(2) tbody");
         block.innerHTML = '';
         let tr = document.createElement("tr");
         tr.setAttribute("class", "fw-bolder");
@@ -83,7 +83,7 @@ async function hourlyForecastCurrentDayByLocation(lat, lon) {
         currentDay.forEach(element => {
             td = document.createElement("td");
             td.setAttribute("scope", "col");
-            td.innerText = formatAMPM(new Date(element.dt * 1000));
+            td.innerText = (new Date(element.dt * 1000)).toLocaleString('en-US', { hour: 'numeric' });
             tr.append(td);
         });
         block.append(tr);
@@ -154,7 +154,7 @@ async function nearbyPlacesByLocation(lat, lon) {
     var cities = new Array();
     const step = 0.1;
     await currentTryPlacesByLocation(lat, lon, 0);
-    let blocks = document.querySelectorAll("#tooday>div:last-of-type td");
+    let blocks = document.querySelectorAll("#today>div:last-of-type td");
     for (let i = 0; i < 4; i++) {
         blocks[i].children[0].innerText = cities[i + 1].name;
         blocks[i].children[1].setAttribute("src", `http://openweathermap.org/img/w/${cities[i + 1].weather[0].icon}.png`);
@@ -187,16 +187,6 @@ async function nearbyPlacesByLocation(lat, lon) {
         return result;
     }
 }
-function formatAMPM(date) {
-    var hours = date.getHours();
-    var minutes = date.getMinutes();
-    var ampm = hours >= 12 ? 'pm' : 'am';
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    minutes = minutes < 10 ? '0' + minutes : minutes;
-    var strTime = hours + ' ' + ampm;
-    return strTime;
-}
 function windDeg(d) {
     let directions = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW", "N"];
     d += 11.25;
@@ -226,8 +216,44 @@ async function geolocationFailure(positionError) {
     await setStartCity();
     showToday();
 }
-function showToday(){
+function showToday() {
+    document.getElementById("forecast").style.display = "none";
+    document.getElementById("error").style.display = "none";
+    document.getElementById("today").style.display = "block";
     currentWeather();
     hourlyForecastCurrentDayByLocation(lat, lon);
     nearbyPlacesByLocation(lat, lon);
+}
+document.querySelector("nav>a:first-of-type").addEventListener("click", function (e) {
+    e.preventDefault();
+    showToday();
+});
+function showForecast() {
+    document.getElementById("today").style.display = "none";
+    document.getElementById("error").style.display = "none";
+    document.getElementById("forecast").style.display = "block";
+    daysForecastByLocation(lat, lon);
+}
+document.querySelector("nav>a:last-of-type").addEventListener("click", function (e) {
+    e.preventDefault();
+    showForecast();
+});
+async function daysForecastByLocation(lat, lon) {
+    const response = await fetch(`https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&exclude=minutely&units=metric&appid=80883943e6ce504c831b3aedd952ba89`, {
+        method: "GET",
+        headers: { "Accept": "application/json" }
+    });
+    if (response.ok === true) {
+        var weather = await response.json();
+        const blocks = document.querySelectorAll("#forecast>div:first-of-type>div>div");
+        let date;
+        for (let i = 0; i < 5; i++) {
+            date = new Date(weather.daily[i].dt * 1000);
+            blocks[i].children[0].innerText = i == 0 ? "tonight" : date.toLocaleString('en', { weekday: 'short' });
+            blocks[i].children[1].innerText = date.toLocaleString('en', { month: 'short', day: '2-digit' });
+            blocks[i].children[2].children[0].setAttribute("src", `http://openweathermap.org/img/w/${weather.daily[i].weather[0].icon}.png`);
+            blocks[i].children[3].innerHTML = `${Math.round(i == 0 ? weather.daily[i].temp.night : weather.daily[i].temp.day)}&#8451`;
+            blocks[i].children[4].innerText = weather.daily[i].weather[0].description;
+        }
+    }
 }
