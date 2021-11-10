@@ -21,6 +21,7 @@ async function setStartCity() {
         const input = document.forms[0].elements[0];
         input.placeholder = `${weather.name}, ${weather.sys.country}`;
     }
+    else callErrorPanel();
 }
 async function currentWeather() {
     let response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=80883943e6ce504c831b3aedd952ba89`, {
@@ -45,6 +46,7 @@ async function currentWeather() {
         sun[1].innerHTML = sunset.toLocaleTimeString();
         sun[2].innerHTML = `${((sunset - sunrise) / 3600000).toFixed(2)} hr`;
     }
+    else callErrorPanel();
 }
 async function hourlyForecastByDayByLocation(lat, lon, block, offsetDay) {
     const response = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=80883943e6ce504c831b3aedd952ba89`, {
@@ -91,6 +93,7 @@ async function hourlyForecastByDayByLocation(lat, lon, block, offsetDay) {
             td = document.createElement("td");
             img = document.createElement("img");
             img.setAttribute("src", `http://openweathermap.org/img/w/${element.weather[0].icon}.png`);
+            img.setAttribute("class", `img-fluid`);
             td.append(img);
             tr.append(td);
         });
@@ -144,8 +147,10 @@ async function hourlyForecastByDayByLocation(lat, lon, block, offsetDay) {
         });
         block.append(tr);
     }
+    else callErrorPanel();
 }
 async function nearbyPlacesByLocation(lat, lon) {
+    if (lat == undefined || lon == undefined) return;
     var cities = new Array();
     const step = 0.1;
     await currentTryPlacesByLocation(lat, lon, 0);
@@ -169,6 +174,7 @@ async function nearbyPlacesByLocation(lat, lon) {
                 cities.push(weather);
             }
         }
+        else callErrorPanel();
         index++;
         await currentTryPlacesByLocation(lat, lon, index);
     }
@@ -221,6 +227,10 @@ function showToday() {
 }
 document.querySelector("nav>a:first-of-type").addEventListener("click", function (e) {
     e.preventDefault();
+    if (lat == undefined || lon == undefined) return;
+    document.querySelectorAll("#forecast>div:first-of-type>div>div").forEach(element => {
+        element.style.opacity = 1;
+    });
     showToday();
 });
 function showForecast() {
@@ -232,6 +242,7 @@ function showForecast() {
 }
 document.querySelector("nav>a:last-of-type").addEventListener("click", function (e) {
     e.preventDefault();
+    if (lat == undefined || lon == undefined) return;
     showForecast();
 });
 async function daysForecastByLocation(lat, lon) {
@@ -259,28 +270,44 @@ async function daysForecastByLocation(lat, lon) {
             })
         }
     }
+    else callErrorPanel();
 }
 async function searchCity(city) {
-    let response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city.replace(" ", "")}&appid=80883943e6ce504c831b3aedd952ba89`, {
-        method: "GET",
-        headers: { "Accept": "application/json" }
-    });
-    if (response.ok === true) {
-        const weather = await response.json();
-        lat = weather.coord.lat;
-        lon = weather.coord.lon;
+    try {
+        let response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city.replace(" ", "")}&appid=80883943e6ce504c831b3aedd952ba89`, {
+            method: "GET",
+            headers: { "Accept": "application/json" }
+        });
+        if (response.ok === true) {
+            const weather = await response.json();
+            lat = weather.coord.lat;
+            lon = weather.coord.lon;
+        }
+        else {
+            lat = undefined;
+            lon = undefined;
+            callErrorPanel();
+        }
+    } catch (err) {
+        lat = undefined;
+        lon = undefined;
+        callErrorPanel();
     }
+
 }
 document.querySelector("body>div:first-of-type img").addEventListener("click", async function () {
-    const input = document.forms[0].elements[0];
-    await searchCity(input.value);
+    await searchCity(this.previousSibling.previousSibling.value);
     showToday();
 })
 document.forms[0].elements[0].addEventListener("keydown", async function (e) {
     if (e.key == "Enter") {
         e.preventDefault();
-        const input = document.forms[0].elements[0];
-        await searchCity(input.value);
+        await searchCity(this.value);
         showToday();
     }
 })
+function callErrorPanel() {
+    document.getElementById("today").style.display = "none";
+    document.getElementById("forecast").style.display = "none";
+    document.getElementById("error").style.display = "block";
+}
